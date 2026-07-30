@@ -3,8 +3,8 @@ let myChart = null;
 let currentFileBlob = null;
 const BUDGET_LIMIT = 10000000;
 
-// Khởi tạo IndexedDB lưu ảnh
-const request = indexedDB.open("MoneyMasterPro_V2", 1);
+// Khởi tạo IndexedDB lưu ảnh hóa đơn
+const request = indexedDB.open("MoneyMasterPro_V3", 1);
 request.onupgradeneeded = function(e) {
     db = e.target.result;
     if (!db.objectStoreNames.contains("receipts")) {
@@ -15,6 +15,21 @@ request.onsuccess = function(e) {
     db = e.target.result; 
     loadAllData();
 };
+
+// Hàm định dạng số tiền tự động (Thêm dấu chấm phân cách hàng nghìn)
+function formatCurrencyInput(input) {
+    let value = input.value.replace(/\D/g, "");
+    if (value) {
+        value = parseInt(value, 10).toLocaleString('vi-VN');
+    }
+    input.value = value;
+}
+
+// Hàm lấy giá trị thực từ ô input có dấu chấm
+function getRawAmount(elementId) {
+    const val = document.getElementById(elementId).value;
+    return parseInt(val.replace(/\./g, ""), 10) || 0;
+}
 
 function unlockApp() {
     const pin = document.getElementById('pin-code').value;
@@ -58,7 +73,7 @@ function toggleTypeColor() {
 function checkBudget() {
     const type = document.getElementById('tx-type').value;
     if (type === 'income') return;
-    const currentInput = parseInt(document.getElementById('total-amount').value) || 0;
+    const currentInput = getRawAmount('total-amount');
     const warningDiv = document.getElementById('budget-warning');
     
     if (currentInput >= BUDGET_LIMIT) {
@@ -78,8 +93,8 @@ document.getElementById('receipt-upload').addEventListener('change', async funct
     const file = e.target.files[0];
     if (!file) return;
     currentFileBlob = file;
-    document.getElementById('receipt-thumb').src = URL.createObjectURL(file);
     document.getElementById('receipt-thumb').style.display = 'block';
+    document.getElementById('receipt-thumb').src = URL.createObjectURL(file);
     document.getElementById('ocr-loading').style.display = 'block';
     try {
         const worker = await Tesseract.createWorker('vie');
@@ -87,7 +102,10 @@ document.getElementById('receipt-upload').addEventListener('change', async funct
         await worker.terminate();
         const totalMatch = text.match(/(Tổng tiền|Total|Thanh toán)[\s:.-]*([\d,.]+)/i);
         const taxIdMatch = text.match(/MST[\s:.-]*([0-9-]{10,14})/i);
-        if (totalMatch) document.getElementById('total-amount').value = totalMatch[2].replace(/[.,]/g, '');
+        if (totalMatch) {
+            const rawVal = totalMatch[2].replace(/[.,]/g, '');
+            document.getElementById('total-amount').value = parseInt(rawVal, 10).toLocaleString('vi-VN');
+        }
         if (taxIdMatch) document.getElementById('vendor-taxid').value = taxIdMatch[1];
         document.getElementById('product-list').value = "--- AI Đọc Hóa Đơn ---\n" + text;
         checkBudget();
@@ -100,7 +118,7 @@ document.getElementById('receipt-upload').addEventListener('change', async funct
 
 // Lưu giao dịch
 function saveTransaction() {
-    const amount = document.getElementById('total-amount').value;
+    const amount = getRawAmount('total-amount');
     if (!amount) { alert("Vui lòng nhập số tiền!"); return; }
 
     const txId = Date.now().toString();
@@ -109,7 +127,7 @@ function saveTransaction() {
         type: document.getElementById('tx-type').value,
         date: new Date().toLocaleDateString('vi-VN'),
         vendor: document.getElementById('vendor-name').value || (document.getElementById('tx-type').value === 'income' ? 'Nguồn thu khác' : 'Mua sắm chung'),
-        total: parseInt(amount),
+        total: amount,
         payment: document.getElementById('payment-method').value
     };
 
@@ -158,7 +176,7 @@ function renderTransactions() {
 
     let totalIncome = 0;
     let totalExpense = 0;
-    const tbody = document.getElementById('tx-list');
+    const tbody = document.getElementById('tx-table');
     const recentList = document.getElementById('recent-list');
     if (tbody) tbody.innerHTML = '';
     if (recentList) recentList.innerHTML = '';
@@ -186,6 +204,16 @@ function renderTransactions() {
         }
     });
 
+    const periodSavings = totalIncome - totalExpense;
+    
+    // Tính số dư khả dụng tổng cộng (Tổng Thu - Tổng Chi toàn bộ lịch sử)
+    let globalIncome = 0, globalExpense = 0;
+    allTxs.forEach(tx => {
+        if (tx.type === 'income') globalIncome += tx.total;
+        else globalExpense += tx.total;
+    });
+    const cumulativeBalance = globalIncome - globalExpense;
+
     // Lấy 5 giao dịch gần đây cho Dashboard
     const recentSlice = txs.slice(-5).reverse();
     recentSlice.forEach(tx => {
@@ -200,10 +228,11 @@ function renderTransactions() {
         }
     });
 
-    const balance = totalIncome - totalExpense;
+    // Hiển thị ra Banner Tổng quan
     document.getElementById('total-income').innerText = totalIncome.toLocaleString('vi-VN') + ' đ';
     document.getElementById('total-expense').innerText = totalExpense.toLocaleString('vi-VN') + ' đ';
-    document.getElementById('total-balance').innerText = balance.toLocaleString('vi-VN') + ' đ';
+    document.getElementById('period-savings').innerText = periodSavings.toLocaleString('vi-VN') + ' đ';
+    document.getElementById('total-balance').innerText = cumulativeBalance.toLocaleString('vi-VN') + ' đ';
 
     const insightBox = document.getElementById('ai-insight');
     if (insightBox) {
@@ -211,12 +240,12 @@ function renderTransactions() {
             insightBox.innerText = "🤖 AI: Không có giao dịch nào trong khoảng thời gian này.";
             insightBox.style.borderLeftColor = "#cbd5e1";
             insightBox.style.backgroundColor = "#f8fafc";
-        } else if (balance < 0) {
-            insightBox.innerText = `🚨 CẢNH BÁO AI: Dòng tiền đang âm ${Math.abs(balance).toLocaleString('vi-VN')} đ!`;
+        } else if (periodSavings < 0) {
+            insightBox.innerText = `🚨 CẢNH BÁO AI: Kỳ này bạn đang âm ${Math.abs(periodSavings).toLocaleString('vi-VN')} đ!`;
             insightBox.style.borderLeftColor = "#ef4444";
             insightBox.style.backgroundColor = "#fef2f2";
         } else {
-            insightBox.innerText = `💡 AI Thống kê: Bạn đã tiết kiệm được ${balance.toLocaleString('vi-VN')} đ. Quản lý tài chính rất tốt!`;
+            insightBox.innerText = `💡 AI Thống kê: Kỳ này sau khi trừ chi tiêu, bạn còn dư ${periodSavings.toLocaleString('vi-VN')} đ có thể trích sang Quỹ Tiết Kiệm riêng.`;
             insightBox.style.borderLeftColor = "#10b981";
             insightBox.style.backgroundColor = "#ecfdf5";
         }
@@ -247,6 +276,49 @@ function viewReceipt(id) {
             alert("Không có hóa đơn đính kèm!");
         }
     };
+}
+
+// XUẤT & NHẬP DỮ LIỆU JSON
+function exportJSON() {
+    const backupData = {
+        transactions: JSON.parse(localStorage.getItem('transactions')) || [],
+        accounts: JSON.parse(localStorage.getItem('accounts')) || [],
+        savings: JSON.parse(localStorage.getItem('savings')) || [],
+        assets: JSON.parse(localStorage.getItem('assets')) || [],
+        debts: JSON.parse(localStorage.getItem('debts')) || [],
+        exportDate: new Date().toLocaleDateString('vi-VN')
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `MoneyMaster_Backup_${new Date().toISOString().slice(0,10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+}
+
+function importJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const content = JSON.parse(e.target.result);
+            if (content.transactions) localStorage.setItem('transactions', JSON.stringify(content.transactions));
+            if (content.accounts) localStorage.setItem('accounts', JSON.stringify(content.accounts));
+            if (content.savings) localStorage.setItem('savings', JSON.stringify(content.savings));
+            if (content.assets) localStorage.setItem('assets', JSON.stringify(content.assets));
+            if (content.debts) localStorage.setItem('debts', JSON.stringify(content.debts));
+            
+            alert("✅ Khôi phục dữ liệu từ file JSON thành công!");
+            loadAllData();
+        } catch (err) {
+            alert("❌ Lỗi: File JSON không hợp lệ!");
+        }
+    };
+    reader.readAsText(file);
 }
 
 function exportExcel() {
@@ -282,14 +354,14 @@ function updateChart(income, expense) {
     });
 }
 
-// Quản lý Tài khoản, Tài sản, Công nợ
+// Quản lý Tài khoản, Quỹ Tiết Kiệm riêng biệt (tự động trừ số dư thu nhập), Tài sản, Công nợ
 function saveAccount() {
     const name = document.getElementById('acc-name').value;
     const type = document.getElementById('acc-type').value;
-    const balance = document.getElementById('acc-balance').value;
-    if (!name || !balance) return alert("Vui lòng nhập đủ thông tin!");
+    const balance = getRawAmount('acc-balance');
+    if (!name || isNaN(balance)) return alert("Vui lòng nhập đủ thông tin!");
     let accounts = JSON.parse(localStorage.getItem('accounts')) || [];
-    accounts.push({ id: Date.now(), name, type, balance: parseInt(balance) });
+    accounts.push({ id: Date.now(), name, type, balance: balance });
     localStorage.setItem('accounts', JSON.stringify(accounts));
     closeModal('account-modal');
     document.getElementById('acc-name').value = '';
@@ -306,13 +378,70 @@ function renderAccounts() {
     `).join('');
 }
 
+// Xử lý Quỹ Tiết Kiệm Riêng Biệt (Tự động trừ vào số dư tổng thu)
+function saveSavingManual() {
+    const desc = document.getElementById('svg-desc').value;
+    const amount = getRawAmount('svg-amount');
+    if (!desc || !amount) return alert("Vui lòng nhập đầy đủ mô tả và số tiền tiết kiệm!");
+    
+    // 1. Lưu vào danh sách Quỹ Tiết Kiệm
+    let savings = JSON.parse(localStorage.getItem('savings')) || [];
+    savings.push({
+        id: Date.now(),
+        date: new Date().toLocaleDateString('vi-VN'),
+        desc: desc,
+        amount: amount
+    });
+    localStorage.setItem('savings', JSON.stringify(savings));
+
+    // 2. Tự động ghi nhận một khoản trừ (chi phí/trích quỹ) vào danh sách giao dịch để trừ trực tiếp trên tổng thu/số dư
+    let txs = JSON.parse(localStorage.getItem('transactions')) || [];
+    txs.push({
+        id: 'saving_' + Date.now(),
+        type: 'expense',
+        date: new Date().toLocaleDateString('vi-VN'),
+        vendor: 'Trích quỹ tiết kiệm: ' + desc,
+        total: amount,
+        payment: 'Tiết kiệm'
+    });
+    localStorage.setItem('transactions', JSON.stringify(txs));
+
+    closeModal('saving-modal');
+    document.getElementById('svg-desc').value = '';
+    document.getElementById('svg-amount').value = '';
+    
+    loadAllData();
+    alert("✅ Đã thêm vào quỹ tiết kiệm và trừ thành công khỏi số dư khả dụng!");
+}
+
+function renderSavings() {
+    const savings = JSON.parse(localStorage.getItem('savings')) || [];
+    const tbody = document.getElementById('saving-list');
+    if (!tbody) return;
+    
+    let totalSavingsFund = 0;
+    tbody.innerHTML = savings.map((item, index) => {
+        totalSavingsFund += item.amount;
+        return `
+            <tr>
+                <td>${item.date}</td>
+                <td><strong>${item.desc}</strong></td>
+                <td class="text-green"><strong>+${item.amount.toLocaleString('vi-VN')} đ</strong></td>
+                <td><button class="btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="deleteData('savings', ${index}, renderSavings)">Xóa</button></td>
+            </tr>
+        `;
+    }).join('');
+
+    document.getElementById('total-savings-fund').innerText = totalSavingsFund.toLocaleString('vi-VN') + ' đ';
+}
+
 function saveAsset() {
     const name = document.getElementById('ast-name').value;
     const type = document.getElementById('ast-type').value;
-    const value = document.getElementById('ast-value').value;
-    if (!name || !value) return alert("Vui lòng nhập đủ thông tin!");
+    const value = getRawAmount('ast-value');
+    if (!name || isNaN(value)) return alert("Vui lòng nhập đủ thông tin!");
     let assets = JSON.parse(localStorage.getItem('assets')) || [];
-    assets.push({ id: Date.now(), name, type, value: parseInt(value) });
+    assets.push({ id: Date.now(), name, type, value: value });
     localStorage.setItem('assets', JSON.stringify(assets));
     closeModal('asset-modal');
     document.getElementById('ast-name').value = '';
@@ -332,11 +461,11 @@ function renderAssets() {
 function saveDebt() {
     const person = document.getElementById('dbt-person').value;
     const type = document.getElementById('dbt-type').value;
-    const amount = document.getElementById('dbt-amount').value;
+    const amount = getRawAmount('dbt-amount');
     const dueDate = document.getElementById('dbt-duedate').value;
     if (!person || !amount) return alert("Vui lòng nhập tên và số tiền!");
     let debts = JSON.parse(localStorage.getItem('debts')) || [];
-    debts.push({ id: Date.now(), person, type, amount: parseInt(amount), dueDate });
+    debts.push({ id: Date.now(), person, type, amount: amount, dueDate });
     localStorage.setItem('debts', JSON.stringify(debts));
     closeModal('debt-modal');
     document.getElementById('dbt-person').value = '';
@@ -361,12 +490,14 @@ function deleteData(storageKey, index, renderFunc) {
         data.splice(index, 1);
         localStorage.setItem(storageKey, JSON.stringify(data));
         renderFunc();
+        if(storageKey === 'savings') renderSavings();
     }
 }
 
 function loadAllData() {
     renderTransactions();
     renderAccounts();
+    renderSavings();
     renderAssets();
     renderDebts();
 }

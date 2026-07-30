@@ -28,20 +28,21 @@
                 <li onclick="switchTab('dashboard')" class="active-menu">📊 Tổng quan</li>
                 <li onclick="switchTab('transactions')">💸 Lịch sử Giao dịch</li>
                 <li onclick="switchTab('accounts')">🏦 Tài khoản Ngân hàng</li>
+                <li onclick="switchTab('savings')">💰 Quỹ Tiết kiệm</li>
                 <li onclick="switchTab('assets')">🏠 Quản lý Tài sản</li>
                 <li onclick="switchTab('debts')">🤝 Công nợ</li>
             </ul>
         </nav>
 
         <main class="main-content">
-            <!-- Thanh lọc theo tháng / năm -->
+            <!-- Thanh lọc & Sao lưu dữ liệu JSON -->
             <div class="filter-bar">
-                <span style="font-weight: bold; color: #1e293b;">📅 Lọc Dữ Liệu:</span>
-                <div style="display: flex; gap: 10px; align-items: center;">
+                <span style="font-weight: bold; color: #1e293b;">📅 Lọc:</span>
+                <div style="display: flex; gap: 5px; align-items: center;">
                     <label for="month-filter">Tháng:</label>
                     <input type="month" id="month-filter" onchange="document.getElementById('year-filter').value=''; renderTransactions();">
                 </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
+                <div style="display: flex; gap: 5px; align-items: center;">
                     <label for="year-filter">Năm:</label>
                     <select id="year-filter" onchange="document.getElementById('month-filter').value=''; renderTransactions();">
                         <option value="">-- Tất cả --</option>
@@ -49,33 +50,35 @@
                         <option value="2025">2025</option>
                         <option value="2026">2026</option>
                         <option value="2027">2027</option>
-                        <option value="2027">2028</option>
-                        <option value="2027">2029</option>
-                        <option value="2027">2030</option>
-                        <option value="2027">2031</option>
-                        <option value="2027">2032</option>
-                        <option value="2027">2033</option>
-                        <option value="2027">2034</option>
-                        <option value="2027">2035</option>
                     </select>
                 </div>
-                <button class="btn-secondary" style="padding: 8px 15px;" onclick="clearFilter()">🔄 Xem tất cả</button>
+                <button class="btn-secondary" style="padding: 8px 12px;" onclick="clearFilter()">🔄 Xem tất cả</button>
+                
+                <div style="margin-left: auto; display: flex; gap: 8px;">
+                    <button class="btn-secondary" style="background: #0ea5e9; padding: 8px 12px;" onclick="exportJSON()">📥 Xuất JSON</button>
+                    <button class="btn-secondary" style="background: #8b5cf6; padding: 8px 12px;" onclick="document.getElementById('import-json-file').click()">📤 Nhập JSON</button>
+                    <input type="file" id="import-json-file" accept=".json" style="display: none;" onchange="importJSON(event)">
+                </div>
             </div>
 
             <!-- BANNER TỔNG QUAN -->
             <div class="banner">
                 <div class="balance-box">
-                    <p>SỐ DƯ HIỆN TẠI</p>
+                    <p>SỐ DƯ KHẢ DỤNG</p>
                     <h1 id="total-balance">0 đ</h1>
                 </div>
                 <div class="summary-box">
                     <div class="income-box">
-                        <p>⬇️ Tổng thu nhập</p>
+                        <p>⬇️ Tổng thu</p>
                         <h3 id="total-income" class="text-green">0 đ</h3>
                     </div>
                     <div class="expense-box">
-                        <p>⬆️ Tổng chi tiêu</p>
+                        <p>⬆️ Tổng chi</p>
                         <h3 id="total-expense" class="text-red">0 đ</h3>
+                    </div>
+                    <div class="saving-box" style="border-left: 1px solid rgba(255,255,255,0.2); padding-left: 15px;">
+                        <p>💰 Tiết kiệm kỳ này</p>
+                        <h3 id="period-savings" class="text-green">0 đ</h3>
                     </div>
                 </div>
             </div>
@@ -144,7 +147,34 @@
                 </div>
             </section>
 
-            <!-- TAB 4: Quản lý Tài sản -->
+            <!-- TAB 4: Quỹ Tiết Kiệm (Riêng biệt) -->
+            <section id="tab-savings" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>💰 Quản lý Quỹ Tiết Kiệm Riêng Biệt</h3>
+                    <button class="btn-primary" onclick="openModal('saving-modal')">➕ Thêm Khoản Tiết Kiệm</button>
+                </div>
+                <div class="banner" style="margin-bottom: 20px; background: linear-gradient(135deg, #10b981, #047857);">
+                    <div class="balance-box">
+                        <p>TỔNG QUỸ TIẾT KIỆM TÍCH LŨY</p>
+                        <h1 id="total-savings-fund">0 đ</h1>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ngày ghi nhận</th>
+                                <th>Mô tả / Mục đích</th>
+                                <th>Số tiền tiết kiệm</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="saving-list"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 5: Quản lý Tài sản -->
             <section id="tab-assets" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h3>🏠 Quản lý Tài sản (Bất động sản, Xe, Vàng...)</h3>
@@ -165,7 +195,7 @@
                 </div>
             </section>
 
-            <!-- TAB 5: Quản lý Công nợ -->
+            <!-- TAB 6: Quản lý Công nợ -->
             <section id="tab-debts" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h3>🤝 Quản lý Công nợ & Khoản vay</h3>
@@ -210,7 +240,7 @@
                 <div class="form-section">
                     <h3>2. Chi tiết số tiền</h3>
                     <input type="text" id="vendor-name" placeholder="Tên cửa hàng / Người gửi">
-                    <input type="number" id="total-amount" placeholder="Tổng tiền (VNĐ)" required oninput="checkBudget()">
+                    <input type="text" id="total-amount" placeholder="Tổng tiền (VNĐ)" required oninput="checkBudget()" onkeyup="formatCurrencyInput(this)">
                     <div id="budget-warning" class="warning"></div>
                     <input type="text" id="vendor-taxid" placeholder="Mã số thuế (Tùy chọn)">
                     <textarea id="product-list" placeholder="Danh sách sản phẩm..."></textarea>
@@ -242,8 +272,19 @@
                 <option value="Ví điện tử">Ví điện tử</option>
                 <option value="Tiền mặt">Tiền mặt</option>
             </select>
-            <input type="number" id="acc-balance" placeholder="Số dư ban đầu (VNĐ)">
+            <input type="text" id="acc-balance" placeholder="Số dư ban đầu (VNĐ)" onkeyup="formatCurrencyInput(this)">
             <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveAccount()">Lưu Tài Khoản</button>
+        </div>
+    </div>
+
+    <!-- MODAL: THÊM TIẾT KIỆM THỦ CÔNG -->
+    <div id="saving-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close" onclick="closeModal('saving-modal')">&times;</span>
+            <h2>Thêm Khoản Tiết Kiệm</h2>
+            <input type="text" id="svg-desc" placeholder="Mô tả / Mục đích (VD: Tiết kiệm tháng 5)">
+            <input type="text" id="svg-amount" placeholder="Số tiền tiết kiệm (VNĐ)" onkeyup="formatCurrencyInput(this)">
+            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveSavingManual()">Lưu Vào Quỹ</button>
         </div>
     </div>
 
@@ -259,7 +300,7 @@
                 <option value="Điện tử">Đồ điện tử</option>
                 <option value="Đầu tư">Vàng / Chứng khoán</option>
             </select>
-            <input type="number" id="ast-value" placeholder="Giá trị hiện tại (VNĐ)">
+            <input type="text" id="ast-value" placeholder="Giá trị hiện tại (VNĐ)" onkeyup="formatCurrencyInput(this)">
             <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveAsset()">Lưu Tài Sản</button>
         </div>
     </div>
@@ -274,7 +315,7 @@
                 <option value="Cho vay">Người khác nợ mình (Cho vay)</option>
                 <option value="Đi vay">Mình nợ người khác (Đi vay)</option>
             </select>
-            <input type="number" id="dbt-amount" placeholder="Số tiền (VNĐ)">
+            <input type="text" id="dbt-amount" placeholder="Số tiền (VNĐ)" onkeyup="formatCurrencyInput(this)">
             <label style="display: block; margin: 10px 0 5px; font-weight: bold;">Ngày hẹn trả:</label>
             <input type="date" id="dbt-duedate">
             <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveDebt()">Lưu Công Nợ</button>

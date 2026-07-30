@@ -15,14 +15,14 @@ body { background-color: #f0f2f5; color: #333; }
 
 .main-content { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
 
-.filter-bar { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
-.filter-bar input, .filter-bar select { width: auto; margin: 0; padding: 8px; }
+.filter-bar { background: white; padding: 12px 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.filter-bar input, .filter-bar select { width: auto; margin: 0; padding: 6px; }
 
 .banner { background: linear-gradient(135deg, #0ea5e9, #2563eb); border-radius: 12px; padding: 25px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-.balance-box p { font-size: 14px; opacity: 0.9; margin-bottom: 5px; }
-.balance-box h1 { font-size: 36px; margin: 0; }
-.summary-box { display: flex; gap: 30px; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 8px; }
-.income-box h3, .expense-box h3 { margin-top: 5px; font-size: 20px; }
+.balance-box p { font-size: 13px; opacity: 0.9; margin-bottom: 5px; }
+.balance-box h1 { font-size: 32px; margin: 0; }
+.summary-box { display: flex; gap: 20px; background: rgba(255,255,255,0.1); padding: 15px 20px; border-radius: 8px; }
+.income-box h3, .expense-box h3, .saving-box h3 { margin-top: 5px; font-size: 18px; }
 
 .text-green { color: #4ade80 !important; }
 .text-red { color: #f87171 !important; }
