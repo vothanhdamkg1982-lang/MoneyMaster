@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoneyMaster Pro - Quản lý Tài chính</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Màn hình khóa -->
+    <div id="lock-screen" class="screen">
+        <div class="lock-box">
+            <h2>🔒 MoneyMaster Pro</h2>
+            <p>Nhập mã PIN để mở khóa</p>
+            <input type="password" id="pin-code" placeholder="Mã PIN (mặc định: 1234)">
+            <button class="btn-primary" onclick="unlockApp()">Mở khóa</button>
+        </div>
+    </div>
+
+    <!-- Màn hình chính -->
+    <div id="app-content" class="screen" style="display: none;">
+        <nav class="sidebar">
+            <h2 class="logo-text">MoneyMaster</h2>
+            <ul>
+                <li onclick="switchTab('dashboard')" class="active-menu">📊 Tổng quan</li>
+                <li onclick="switchTab('transactions')">💸 Lịch sử Giao dịch</li>
+                <li onclick="switchTab('accounts')">🏦 Tài khoản Ngân hàng</li>
+                <li onclick="switchTab('assets')">🏠 Quản lý Tài sản</li>
+                <li onclick="switchTab('debts')">🤝 Công nợ</li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <!-- BANNER TỔNG QUAN -->
+            <div class="banner">
+                <div class="balance-box">
+                    <p>SỐ DƯ HIỆN TẠI</p>
+                    <h1 id="total-balance">0 đ</h1>
+                </div>
+                <div class="summary-box">
+                    <div class="income-box">
+                        <p>⬇️ Tổng thu nhập</p>
+                        <h3 id="total-income" class="text-green">0 đ</h3>
+                    </div>
+                    <div class="expense-box">
+                        <p>⬆️ Tổng chi tiêu</p>
+                        <h3 id="total-expense" class="text-red">0 đ</h3>
+                    </div>
+                </div>
+            </div>
+
+            <header class="top-bar">
+                <button class="btn-primary btn-large" onclick="openModal('tx-modal')">➕ Thêm Giao dịch Mới</button>
+                <button class="btn-secondary" onclick="exportExcel()">⬇️ Xuất CSV</button>
+            </header>
+
+            <!-- TAB 1: Tổng quan -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="ai-insight" id="ai-insight">
+                    🤖 AI Thống kê: Chưa có dữ liệu giao dịch.
+                </div>
+                <div class="dashboard-grid">
+                    <div class="chart-container">
+                        <h3>Cơ cấu Thu / Chi</h3>
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                    <div class="recent-tx">
+                        <h3>Giao dịch gần đây</h3>
+                        <ul id="recent-list" class="mini-list"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: Lịch sử Giao dịch -->
+            <section id="tab-transactions" class="tab-content">
+                <h3>Tất cả Giao dịch</h3>
+                <div class="table-responsive">
+                    <table id="tx-table">
+                        <thead>
+                            <tr>
+                                <th>Ngày</th>
+                                <th>Loại</th>
+                                <th>Cửa hàng/Nguồn</th>
+                                <th>Số tiền</th>
+                                <th>Thanh toán</th>
+                                <th>Hóa đơn</th>
+                                <th>Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tx-list"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ================= BẮT ĐẦU PHẦN THAY THẾ TRONG <main> ================= -->
+            
+            <!-- TAB 3: Tài khoản Ngân hàng -->
+            <section id="tab-accounts" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>🏦 Quản lý Tài khoản & Ví</h3>
+                    <button class="btn-primary" onclick="openModal('account-modal')">➕ Thêm Tài khoản</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tên Tài khoản</th>
+                                <th>Loại</th>
+                                <th>Số dư</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="account-list"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 4: Quản lý Tài sản -->
+            <section id="tab-assets" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>🏠 Quản lý Tài sản (Bất động sản, Xe, Vàng...)</h3>
+                    <button class="btn-primary" onclick="openModal('asset-modal')">➕ Thêm Tài sản</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tên Tài sản</th>
+                                <th>Phân loại</th>
+                                <th>Giá trị ước tính</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="asset-list"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 5: Quản lý Công nợ -->
+            <section id="tab-debts" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>🤝 Quản lý Công nợ & Khoản vay</h3>
+                    <button class="btn-primary" onclick="openModal('debt-modal')">➕ Thêm Công nợ</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Đối tác</th>
+                                <th>Loại nợ</th>
+                                <th>Số tiền</th>
+                                <th>Ngày hẹn trả</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debt-list"></tbody>
+                    </table>
+                </div>
+            </section>
+            <!-- ================= KẾT THÚC PHẦN THAY THẾ TRONG <main> ================= -->
+
+    <!-- MODAL: THÊM GIAO DỊCH -->
+    <div id="tx-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('tx-modal')">&times;</span>
+            <h2>Thêm Thu Nhập / Chi Tiêu</h2>
+            
+            <div class="form-grid">
+                <!-- Cột 1: Cơ bản & OCR -->
+                <div class="form-section">
+                    <h3>1. Thông tin cơ bản</h3>
+                    <label>Loại giao dịch:</label>
+                    <select id="tx-type" onchange="toggleTypeColor()">
+                        <option value="expense">Khoản Chi (Mua sắm, Hóa đơn)</option>
+                        <option value="income">Khoản Thu (Lương, Thưởng)</option>
+                    </select>
+
+                    <label style="margin-top: 15px; display: block;">📷 Quét hóa đơn (Tự động điền):</label>
+                    <input type="file" id="receipt-upload" accept="image/*" capture="environment">
+                    <div id="ocr-loading">🤖 AI đang phân tích ảnh...</div>
+                    <img id="receipt-thumb" class="thumbnail" alt="Hóa đơn">
+                </div>
+
+                <!-- Cột 2: Số tiền & Đối tác -->
+                <div class="form-section">
+                    <h3>2. Chi tiết số tiền</h3>
+                    <input type="text" id="vendor-name" placeholder="Tên cửa hàng / Người gửi">
+                    <input type="number" id="total-amount" placeholder="Tổng tiền (VNĐ)" required oninput="checkBudget()">
+                    <div id="budget-warning" class="warning"></div>
+                    
+                    <input type="text" id="vendor-taxid" placeholder="Mã số thuế (Tùy chọn)">
+                    <textarea id="product-list" placeholder="Danh sách sản phẩm (AI sẽ tự điền nếu quét hóa đơn)"></textarea>
+                </div>
+
+                <!-- Cột 3: Phân loại -->
+                <div class="form-section">
+                    <h3>3. Phân loại</h3>
+                    <select id="payment-method">
+                        <option value="Tiền mặt">Tiền mặt</option>
+                        <option value="Chuyển khoản">Chuyển khoản / ATM</option>
+                        <option value="Ví điện tử">Ví điện tử (MoMo, ZaloPay)</option>
+                        <option value="Thẻ tín dụng">Thẻ tín dụng</option>
+                    </select>
+                    <input type="text" id="tx-tags" placeholder="Gắn tag: #giadinh, #luong">
+                    <textarea id="tx-notes" placeholder="Ghi chú (Hỗ trợ Markdown)"></textarea>
+                </div>
+            </div>
+            
+            <button class="btn-primary" style="width: 100%; margin-top: 20px; font-size: 1.1em;" onclick="saveTransaction()">💾 LƯU GIAO DỊCH</button>
+        </div>
+    </div>
+<!-- ================= DÁN 3 MODAL NÀY TRƯỚC THẺ <script src="app.js"> ================= -->
+    
+    <!-- MODAL: TÀI KHOẢN -->
+    <div id="account-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close" onclick="closeModal('account-modal')">&times;</span>
+            <h2>Thêm Tài Khoản</h2>
+            <input type="text" id="acc-name" placeholder="Tên (VD: Vietcombank, Ví MoMo, Két sắt)">
+            <select id="acc-type">
+                <option value="Ngân hàng">Ngân hàng</option>
+                <option value="Ví điện tử">Ví điện tử</option>
+                <option value="Tiền mặt">Tiền mặt</option>
+            </select>
+            <input type="number" id="acc-balance" placeholder="Số dư ban đầu (VNĐ)">
+            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveAccount()">Lưu Tài Khoản</button>
+        </div>
+    </div>
+
+    <!-- MODAL: TÀI SẢN -->
+    <div id="asset-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close" onclick="closeModal('asset-modal')">&times;</span>
+            <h2>Thêm Tài Sản</h2>
+            <input type="text" id="ast-name" placeholder="Tên tài sản (VD: SH 150i, Laptop Macbook)">
+            <select id="ast-type">
+                <option value="Phương tiện">Phương tiện (Xe)</option>
+                <option value="Bất động sản">Bất động sản</option>
+                <option value="Điện tử">Đồ điện tử</option>
+                <option value="Đầu tư">Vàng / Chứng khoán</option>
+            </select>
+            <input type="number" id="ast-value" placeholder="Giá trị hiện tại (VNĐ)">
+            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveAsset()">Lưu Tài Sản</button>
+        </div>
+    </div>
+
+    <!-- MODAL: CÔNG NỢ -->
+    <div id="debt-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close" onclick="closeModal('debt-modal')">&times;</span>
+            <h2>Thêm Công Nợ</h2>
+            <input type="text" id="dbt-person" placeholder="Tên người vay / Chủ nợ">
+            <select id="dbt-type">
+                <option value="Cho vay">Người khác nợ mình (Cho vay)</option>
+                <option value="Đi vay">Mình nợ người khác (Đi vay)</option>
+            </select>
+            <input type="number" id="dbt-amount" placeholder="Số tiền (VNĐ)">
+            <label style="display: block; margin: 10px 0 5px; font-weight: bold;">Ngày hẹn trả (Hạn chót):</label>
+            <input type="date" id="dbt-duedate">
+            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveDebt()">Lưu Công Nợ</button>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
