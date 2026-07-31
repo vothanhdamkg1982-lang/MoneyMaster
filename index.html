@@ -3,24 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MoneyMaster Pro - Quản lý Tài chính</title>
+    <title>MoneyMaster Pro - Quản lý Tài chính Đám mây</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Thư viện Firebase v10 (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Màn hình khóa -->
-    <div id="lock-screen" class="screen">
-        <div class="lock-box">
-            <h2>🔒 MoneyMaster Pro</h2>
-            <p>Nhập mã PIN để mở khóa</p>
-            <input type="password" id="pin-code" placeholder="Mã PIN (mặc định: 1234)">
-            <button class="btn-primary" onclick="unlockApp()">Mở khóa</button>
+    <!-- MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ -->
+    <div id="auth-screen" class="screen" style="align-items: center; justify-content: center; background: linear-gradient(135deg, #1e293b, #0ea5e9);">
+        <div class="lock-box" style="width: 380px;">
+            <h2>🔐 MoneyMaster Pro</h2>
+            <p style="margin-bottom: 15px; color: #64748b; font-size: 14px;">Đăng nhập để quản lý tài chính cá nhân</p>
+            <input type="email" id="auth-email" placeholder="Nhập Email của bạn">
+            <input type="password" id="auth-password" placeholder="Mật khẩu">
+            <button class="btn-primary" style="width: 100%; margin-bottom: 10px; padding: 12px;" onclick="loginUser()">Đăng nhập</button>
+            <button class="btn-secondary" style="width: 100%; padding: 12px;" onclick="registerUser()">Đăng ký tài khoản mới</button>
         </div>
     </div>
 
-    <!-- Màn hình chính -->
+    <!-- MÀN HÌNH CHÍNH (Ẩn khi chưa đăng nhập) -->
     <div id="app-content" class="screen" style="display: none;">
         <nav class="sidebar">
             <h2 class="logo-text">MoneyMaster</h2>
@@ -32,10 +39,13 @@
                 <li onclick="switchTab('assets')">🏠 Quản lý Tài sản</li>
                 <li onclick="switchTab('debts')">🤝 Công nợ</li>
             </ul>
+            <div style="padding: 20px; position: absolute; bottom: 0;">
+                <button class="btn-danger" style="width: 100%;" onclick="logoutUser()">🚪 Đăng xuất</button>
+            </div>
         </nav>
 
         <main class="main-content">
-            <!-- Thanh lọc & Sao lưu dữ liệu JSON -->
+            <!-- Thanh lọc -->
             <div class="filter-bar">
                 <span style="font-weight: bold; color: #1e293b;">📅 Lọc:</span>
                 <div style="display: flex; gap: 5px; align-items: center;">
@@ -53,12 +63,6 @@
                     </select>
                 </div>
                 <button class="btn-secondary" style="padding: 8px 12px;" onclick="clearFilter()">🔄 Xem tất cả</button>
-                
-                <div style="margin-left: auto; display: flex; gap: 8px;">
-                    <button class="btn-secondary" style="background: #0ea5e9; padding: 8px 12px;" onclick="exportJSON()">📥 Xuất JSON</button>
-                    <button class="btn-secondary" style="background: #8b5cf6; padding: 8px 12px;" onclick="document.getElementById('import-json-file').click()">📤 Nhập JSON</button>
-                    <input type="file" id="import-json-file" accept=".json" style="display: none;" onchange="importJSON(event)">
-                </div>
             </div>
 
             <!-- BANNER TỔNG QUAN -->
@@ -90,9 +94,7 @@
 
             <!-- TAB 1: Tổng quan -->
             <section id="tab-dashboard" class="tab-content active">
-                <div class="ai-insight" id="ai-insight">
-                    🤖 AI Thống kê: Chưa có dữ liệu giao dịch.
-                </div>
+                <div class="ai-insight" id="ai-insight">🤖 AI Thống kê: Đang tải dữ liệu...</div>
                 <div class="dashboard-grid">
                     <div class="chart-container">
                         <h3>Cơ cấu Thu / Chi</h3>
@@ -117,7 +119,6 @@
                                 <th>Cửa hàng/Nguồn</th>
                                 <th>Số tiền</th>
                                 <th>Thanh toán</th>
-                                <th>Hóa đơn</th>
                                 <th>Xóa</th>
                             </tr>
                         </thead>
@@ -135,22 +136,17 @@
                 <div class="table-responsive">
                     <table>
                         <thead>
-                            <tr>
-                                <th>Tên Tài khoản</th>
-                                <th>Loại</th>
-                                <th>Số dư</th>
-                                <th>Hành động</th>
-                            </tr>
+                            <tr><th>Tên Tài khoản</th><th>Loại</th><th>Số dư</th><th>Hành động</th></tr>
                         </thead>
                         <tbody id="account-list"></tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- TAB 4: Quỹ Tiết Kiệm (Riêng biệt) -->
+            <!-- TAB 4: Quỹ Tiết Kiệm -->
             <section id="tab-savings" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3>💰 Quản lý Quỹ Tiết Kiệm Riêng Biệt</h3>
+                    <h3>💰 Quản lý Quỹ Tiết Kiệm</h3>
                     <button class="btn-primary" onclick="openModal('saving-modal')">➕ Thêm Khoản Tiết Kiệm</button>
                 </div>
                 <div class="banner" style="margin-bottom: 20px; background: linear-gradient(135deg, #10b981, #047857);">
@@ -162,56 +158,36 @@
                 <div class="table-responsive">
                     <table>
                         <thead>
-                            <tr>
-                                <th>Ngày ghi nhận</th>
-                                <th>Mô tả / Mục đích</th>
-                                <th>Số tiền tiết kiệm</th>
-                                <th>Hành động</th>
-                            </tr>
+                            <tr><th>Ngày ghi nhận</th><th>Mô tả</th><th>Số tiền tiết kiệm</th><th>Hành động</th></tr>
                         </thead>
                         <tbody id="saving-list"></tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- TAB 5: Quản lý Tài sản -->
+            <!-- TAB 5: Tài sản -->
             <section id="tab-assets" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3>🏠 Quản lý Tài sản (Bất động sản, Xe, Vàng...)</h3>
+                    <h3>🏠 Quản lý Tài sản</h3>
                     <button class="btn-primary" onclick="openModal('asset-modal')">➕ Thêm Tài sản</button>
                 </div>
                 <div class="table-responsive">
                     <table>
-                        <thead>
-                            <tr>
-                                <th>Tên Tài sản</th>
-                                <th>Phân loại</th>
-                                <th>Giá trị ước tính</th>
-                                <th>Hành động</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Tên Tài sản</th><th>Phân loại</th><th>Giá trị</th><th>Hành động</th></tr></thead>
                         <tbody id="asset-list"></tbody>
                     </table>
                 </div>
             </section>
 
-            <!-- TAB 6: Quản lý Công nợ -->
+            <!-- TAB 6: Công nợ -->
             <section id="tab-debts" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3>🤝 Quản lý Công nợ & Khoản vay</h3>
+                    <h3>🤝 Quản lý Công nợ</h3>
                     <button class="btn-primary" onclick="openModal('debt-modal')">➕ Thêm Công nợ</button>
                 </div>
                 <div class="table-responsive">
                     <table>
-                        <thead>
-                            <tr>
-                                <th>Đối tác</th>
-                                <th>Loại nợ</th>
-                                <th>Số tiền</th>
-                                <th>Ngày hẹn trả</th>
-                                <th>Hành động</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Đối tác</th><th>Loại nợ</th><th>Số tiền</th><th>Hạn trả</th><th>Hành động</th></tr></thead>
                         <tbody id="debt-list"></tbody>
                     </table>
                 </div>
@@ -219,106 +195,85 @@
         </main>
     </div>
 
-    <!-- MODAL: THÊM GIAO DỊCH -->
+    <!-- MODAL THÊM GIAO DỊCH -->
     <div id="tx-modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('tx-modal')">&times;</span>
             <h2>Thêm Thu Nhập / Chi Tiêu</h2>
             <div class="form-grid">
                 <div class="form-section">
-                    <h3>1. Thông tin cơ bản</h3>
+                    <h3>1. Thông tin</h3>
                     <label>Loại giao dịch:</label>
                     <select id="tx-type" onchange="toggleTypeColor()">
-                        <option value="expense">Khoản Chi (Mua sắm, Hóa đơn)</option>
-                        <option value="income">Khoản Thu (Lương, Thưởng)</option>
+                        <option value="expense">Khoản Chi</option>
+                        <option value="income">Khoản Thu</option>
                     </select>
                     <label style="margin-top: 15px; display: block;">📷 Quét hóa đơn:</label>
-                    <input type="file" id="receipt-upload" accept="image/*" capture="environment">
+                    <input type="file" id="receipt-upload" accept="image/*">
                     <div id="ocr-loading">🤖 AI đang phân tích ảnh...</div>
                     <img id="receipt-thumb" class="thumbnail" alt="Hóa đơn">
                 </div>
                 <div class="form-section">
-                    <h3>2. Chi tiết số tiền</h3>
-                    <input type="text" id="vendor-name" placeholder="Tên cửa hàng / Người gửi">
-                    <input type="text" id="total-amount" placeholder="Tổng tiền (VNĐ)" required oninput="checkBudget()" onkeyup="formatCurrencyInput(this)">
-                    <div id="budget-warning" class="warning"></div>
-                    <input type="text" id="vendor-taxid" placeholder="Mã số thuế (Tùy chọn)">
-                    <textarea id="product-list" placeholder="Danh sách sản phẩm..."></textarea>
+                    <h3>2. Số tiền</h3>
+                    <input type="text" id="vendor-name" placeholder="Tên cửa hàng / Nguồn">
+                    <input type="text" id="total-amount" placeholder="Tổng tiền (VNĐ)" onkeyup="formatCurrencyInput(this)">
+                    <textarea id="product-list" placeholder="Ghi chú sản phẩm..."></textarea>
                 </div>
                 <div class="form-section">
-                    <h3>3. Phân loại</h3>
+                    <h3>3. Thanh toán</h3>
                     <select id="payment-method">
                         <option value="Tiền mặt">Tiền mặt</option>
-                        <option value="Chuyển khoản">Chuyển khoản / ATM</option>
+                        <option value="Chuyển khoản">Chuyển khoản</option>
                         <option value="Ví điện tử">Ví điện tử</option>
-                        <option value="Thẻ tín dụng">Thẻ tín dụng</option>
                     </select>
-                    <input type="text" id="tx-tags" placeholder="Gắn tag: #giadinh">
-                    <textarea id="tx-notes" placeholder="Ghi chú..."></textarea>
                 </div>
             </div>
-            <button class="btn-primary" style="width: 100%; margin-top: 20px; font-size: 1.1em;" onclick="saveTransaction()">💾 LƯU GIAO DỊCH</button>
+            <button class="btn-primary" style="width: 100%; margin-top: 20px;" onclick="saveTransaction()">💾 LƯU GIAO DỊCH</button>
         </div>
     </div>
 
-    <!-- MODAL: TÀI KHOẢN -->
+    <!-- MODALS KHÁC -->
     <div id="account-modal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 400px;">
             <span class="close" onclick="closeModal('account-modal')">&times;</span>
             <h2>Thêm Tài Khoản</h2>
             <input type="text" id="acc-name" placeholder="Tên (VD: Vietcombank)">
-            <select id="acc-type">
-                <option value="Ngân hàng">Ngân hàng</option>
-                <option value="Ví điện tử">Ví điện tử</option>
-                <option value="Tiền mặt">Tiền mặt</option>
-            </select>
-            <input type="text" id="acc-balance" placeholder="Số dư ban đầu (VNĐ)" onkeyup="formatCurrencyInput(this)">
-            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveAccount()">Lưu Tài Khoản</button>
+            <select id="acc-type"><option value="Ngân hàng">Ngân hàng</option><option value="Ví điện tử">Ví điện tử</option></select>
+            <input type="text" id="acc-balance" placeholder="Số dư" onkeyup="formatCurrencyInput(this)">
+            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveAccount()">Lưu</button>
         </div>
     </div>
 
-    <!-- MODAL: THÊM TIẾT KIỆM THỦ CÔNG -->
     <div id="saving-modal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 400px;">
             <span class="close" onclick="closeModal('saving-modal')">&times;</span>
-            <h2>Thêm Khoản Tiết Kiệm</h2>
-            <input type="text" id="svg-desc" placeholder="Mô tả / Mục đích (VD: Tiết kiệm tháng 5)">
-            <input type="text" id="svg-amount" placeholder="Số tiền tiết kiệm (VNĐ)" onkeyup="formatCurrencyInput(this)">
+            <h2>Thêm Tiết Kiệm</h2>
+            <input type="text" id="svg-desc" placeholder="Mô tả mục đích">
+            <input type="text" id="svg-amount" placeholder="Số tiền" onkeyup="formatCurrencyInput(this)">
             <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveSavingManual()">Lưu Vào Quỹ</button>
         </div>
     </div>
 
-    <!-- MODAL: TÀI SẢN -->
     <div id="asset-modal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 400px;">
             <span class="close" onclick="closeModal('asset-modal')">&times;</span>
             <h2>Thêm Tài Sản</h2>
-            <input type="text" id="ast-name" placeholder="Tên tài sản (VD: Xe máy)">
-            <select id="ast-type">
-                <option value="Phương tiện">Phương tiện</option>
-                <option value="Bất động sản">Bất động sản</option>
-                <option value="Điện tử">Đồ điện tử</option>
-                <option value="Đầu tư">Vàng / Chứng khoán</option>
-            </select>
-            <input type="text" id="ast-value" placeholder="Giá trị hiện tại (VNĐ)" onkeyup="formatCurrencyInput(this)">
-            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveAsset()">Lưu Tài Sản</button>
+            <input type="text" id="ast-name" placeholder="Tên tài sản">
+            <select id="ast-type"><option value="Phương tiện">Phương tiện</option><option value="Bất động sản">Bất động sản</option></select>
+            <input type="text" id="ast-value" placeholder="Giá trị" onkeyup="formatCurrencyInput(this)">
+            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveAsset()">Lưu</button>
         </div>
     </div>
 
-    <!-- MODAL: CÔNG NỢ -->
     <div id="debt-modal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 400px;">
             <span class="close" onclick="closeModal('debt-modal')">&times;</span>
             <h2>Thêm Công Nợ</h2>
-            <input type="text" id="dbt-person" placeholder="Tên người vay / Chủ nợ">
-            <select id="dbt-type">
-                <option value="Cho vay">Người khác nợ mình (Cho vay)</option>
-                <option value="Đi vay">Mình nợ người khác (Đi vay)</option>
-            </select>
-            <input type="text" id="dbt-amount" placeholder="Số tiền (VNĐ)" onkeyup="formatCurrencyInput(this)">
-            <label style="display: block; margin: 10px 0 5px; font-weight: bold;">Ngày hẹn trả:</label>
-            <input type="date" id="dbt-duedate">
-            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveDebt()">Lưu Công Nợ</button>
+            <input type="text" id="dbt-person" placeholder="Tên đối tác">
+            <select id="dbt-type"><option value="Cho vay">Cho vay</option><option value="Đi vay">Đi vay</option></select>
+            <input type="text" id="dbt-amount" placeholder="Số tiền" onkeyup="formatCurrencyInput(this)">
+            <input type="date" id="dbt-duedate" style="margin-top:10px;">
+            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveDebt()">Lưu</button>
         </div>
     </div>
 
