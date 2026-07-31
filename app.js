@@ -1,4 +1,3 @@
-// --- CẤU HÌNH FIREBASE CỦA BẠN ---
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
@@ -13,21 +12,13 @@ const firebaseConfig = {
   projectId: "moneymasterpro-a207c",
   storageBucket: "moneymasterpro-a207c.firebasestorage.app",
   messagingSenderId: "545365209674",
-  appId: "1:545365209674:web:31f712b0969ee54ea06cb3",
-  measurementId: "G-QM9BPY80L4"
+  appId: "1:545365209674:web:b92a785409a56438a06cb3",
+  measurementId: "G-W45N876RZ9"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
-
-// Khởi tạo Firebase
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const dbCloud = firebase.firestore();
-
-let myChart = null;
-let currentUserId = null;
 
 // Xử lý định dạng tiền tệ khi gõ
 function formatCurrencyInput(input) {
