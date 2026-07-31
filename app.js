@@ -1,4 +1,4 @@
-// --- CẤU HÌNH FIREBASE CỦA BẠN ---
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBSfPpoeSmGnKiX7Hhjr83fsLN4ifaPWH4",
   authDomain: "moneymasterpro-a207c.firebaseapp.com",
