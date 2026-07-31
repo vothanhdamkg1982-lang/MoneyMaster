@@ -1,11 +1,4 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// --- CẤU HÌNH FIREBASE CỦA BẠN ---
 const firebaseConfig = {
   apiKey: "AIzaSyBSfPpoeSmGnKiX7Hhjr83fsLN4ifaPWH4",
   authDomain: "moneymasterpro-a207c.firebaseapp.com",
@@ -16,9 +9,13 @@ const firebaseConfig = {
   measurementId: "G-W45N876RZ9"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+// Khởi tạo Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const dbCloud = firebase.firestore();
+
+let myChart = null;
+let currentUserId = null;
 
 // Xử lý định dạng tiền tệ khi gõ
 function formatCurrencyInput(input) {
