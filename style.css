@@ -53,3 +53,9 @@ th, td { border-bottom: 1px solid #e2e8f0; padding: 12px; text-align: left; }
 th { background-color: #f8fafc; color: #475569; }
 .mini-list { list-style: none; }
 .mini-list li { padding: 10px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+
+#receipt-list img { max-height: 50px; border-radius: 4px; cursor: pointer; }
+
+/* Camera modal */
+#video { background: #000; border-radius: 8px; }
+#camera-status { min-height: 20px; }
