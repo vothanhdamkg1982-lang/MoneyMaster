@@ -305,6 +305,10 @@ async function saveTransaction() {
     }
 
     alert("✅ Lưu thành công!");
+    
+    // ✅ Thêm dòng này để tải lại danh sách giao dịch ngay lập tức
+    fetchTransactions(); 
+
     closeModal('tx-modal');
     document.querySelectorAll('#tx-modal input, #tx-modal textarea').forEach(el => el.value = '');
     document.getElementById('receipt-thumb').style.display = 'none';
@@ -326,6 +330,7 @@ async function saveAccount() {
         closeModal('account-modal');
         document.getElementById('acc-name').value = '';
         document.getElementById('acc-balance').value = '';
+        fetchAccounts(); // ✅ Đã thêm dòng này để hiển thị ngay lập tức
     }
 }
 
@@ -352,6 +357,7 @@ async function saveSavingManual() {
     closeModal('saving-modal');
     document.getElementById('svg-desc').value = '';
     document.getElementById('svg-amount').value = '';
+    fetchSavings(); // ✅ Đã thêm dòng này để hiển thị ngay lập tức
     alert("✅ Đã thêm quỹ tiết kiệm và trừ vào số dư!");
 }
 
@@ -368,6 +374,7 @@ async function saveAsset() {
         closeModal('asset-modal');
         document.getElementById('ast-name').value = '';
         document.getElementById('ast-value').value = '';
+        fetchAssets(); // ✅ Đã thêm dòng này để hiển thị ngay lập tức
     }
 }
 
@@ -385,17 +392,31 @@ async function saveDebt() {
         closeModal('debt-modal');
         document.getElementById('dbt-person').value = '';
         document.getElementById('dbt-amount').value = '';
+        fetchDebts(); // ✅ Đã thêm dòng này để hiển thị ngay lập tức
     }
 }
 
+// Hàm xóa dữ liệu (đã sửa để tải lại UI ngay lập tức)
 async function deleteCloudData(table, id) {
     if (!confirm("Bạn có chắc muốn xóa?")) return;
+    
     const { error } = await supabaseClient
         .from(table)
         .delete()
         .eq('id', id)
         .eq('user_id', currentUserId);
-    if (error) alert("Lỗi xóa: " + error.message);
+        
+    if (error) {
+        alert("Lỗi xóa: " + error.message);
+    } else {
+        // Nếu xóa thành công, gọi hàm tải lại dữ liệu tương ứng với bảng vừa xóa
+        if (table === 'transactions') fetchTransactions();
+        if (table === 'savings') fetchSavings();
+        if (table === 'accounts') fetchAccounts();
+        if (table === 'assets') fetchAssets();
+        if (table === 'debts') fetchDebts();
+        if (table === 'receipts') fetchReceipts();
+    }
 }
 
 // ================== RENDER FUNCTIONS ==================
@@ -742,23 +763,29 @@ if (insertError) {
     currentReceiptAmount = 0;
 });
 
-// Xóa hóa đơn (cả file storage)
+// Xóa hóa đơn (Sửa lỗi JSON an toàn, không làm vỡ các module khác)
 async function deleteReceipt(docId) {
     if (!confirm('Xóa hóa đơn này?')) return;
+
     const { data, error } = await supabaseClient
         .from('receipts')
         .select('image_url')
-        .eq('id', docId)
-        .single();
+        .eq('id', docId);
 
     if (error) {
         alert('Lỗi lấy thông tin: ' + error.message);
         return;
     }
 
-    // Lấy file path từ URL
-    const urlParts = data.image_url.split('/');
-    // URL mẫu: https://.../storage/v1/object/public/receipts/receipts/userid/filename
+    if (!data || data.length === 0) {
+        alert('Không tìm thấy hóa đơn này (có thể đã bị xóa trước đó).');
+        return;
+    }
+
+    const receipt = data[0];
+
+    // Xóa file trên Storage
+    const urlParts = receipt.image_url.split('/');
     const bucketIndex = urlParts.indexOf('receipts');
     if (bucketIndex !== -1) {
         const filePath = urlParts.slice(bucketIndex + 1).join('/');
@@ -768,12 +795,18 @@ async function deleteReceipt(docId) {
         if (deleteError) console.warn('Không xóa được file:', deleteError);
     }
 
+    // Xóa bản ghi trong Database
     const { error: delDbError } = await supabaseClient
         .from('receipts')
         .delete()
         .eq('id', docId)
         .eq('user_id', currentUserId);
-    if (delDbError) alert('Lỗi xóa: ' + delDbError.message);
+    
+    if (delDbError) {
+        alert('Lỗi xóa: ' + delDbError.message);
+    } else {
+        fetchReceipts(); // Cập nhật UI ngay lập tức
+    }
 }
 
 // ================== UTILITY ==================
