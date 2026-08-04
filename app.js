@@ -591,6 +591,9 @@ function renderReceipts() {
             <td>${amountStr}</td>
             <td>${linked}</td>
             <td>
+                <!-- 👁️ Nút xem ảnh -->
+                <button class="btn-secondary" style="padding:4px 8px; font-size:12px; margin-right:5px;" onclick="window.open('${receipt.image_url}','_blank')">👁️ Xem ảnh</button>
+                
                 <button class="btn-secondary" style="padding:4px 8px; font-size:12px; margin-right:5px;" onclick="downloadReceipt('${receipt.image_url}')">⬇️ Tải xuống</button>
                 <button class="btn-danger" style="padding:4px 8px; font-size:12px;" onclick="deleteReceipt('${receipt.id}')">Xóa</button>
             </td>
