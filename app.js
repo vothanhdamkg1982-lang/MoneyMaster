@@ -438,8 +438,10 @@ function renderTransactions() {
         });
     }
 
+    // ✅ QUAN TRỌNG: Lưu danh sách giao dịch đang hiển thị vào biến toàn cục để CSV xuất đúng
+    window.currentFilteredTxs = txs; 
+
     let totalIncome = 0, totalExpense = 0;
-    // ============= ĐÃ SỬA: Lấy element 'tx-list' thay vì 'tx-table' =============
     const tbody = document.getElementById('tx-list'); 
     const recentList = document.getElementById('recent-list');
     if (tbody) tbody.innerHTML = '';
@@ -483,6 +485,41 @@ function renderTransactions() {
     document.getElementById('ai-insight').innerText = `💡 Thống kê: Số dư khả dụng hiện tại là ${cumulativeBalance.toLocaleString('vi-VN')} đ.`;
     updateChart(totalIncome, totalExpense);
 }
+// Hàm xuất CSV (Dùng requestAnimationFrame để an toàn tuyệt đối với trình duyệt)
+function exportExcel() {
+    const txsToExport = window.currentFilteredTxs || cachedTransactions;
+    if (txsToExport.length === 0) {
+        alert("Không có giao dịch nào để xuất.");
+        return;
+    }
+
+    let csv = "\uFEFF"; 
+    csv += "Ngày,Loại,Cửa Hàng,Số Tiền,Thanh Toán\n";
+    
+    txsToExport.forEach(tx => {
+        const typeText = tx.type === 'income' ? 'Thu' : 'Chi';
+        const amountText = tx.total.toLocaleString('vi-VN') + ' đ';
+        csv += `${tx.date},${typeText},"${tx.vendor}",${amountText},${tx.payment}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Lich_Su_Thu_Chi.csv';
+    document.body.appendChild(link);
+    
+    // ⏱️ Chờ 200ms để DOM có thời gian ghi nhận thẻ link
+    setTimeout(() => {
+        link.click(); // Kích hoạt tải xuống
+        // Sau khi tải xuống bắt đầu, dùng thêm 200ms nữa để dọn dẹp
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 200);
+    }, 200);
+}
 
 function renderSavings() {
     const tbody = document.getElementById('saving-list');
@@ -515,7 +552,26 @@ function renderDebts() {
         return `<tr><td><strong>${dbt.person}</strong></td><td><span class="${isLend ? 'bg-green' : 'bg-red'}">${dbt.type}</span></td><td class="${isLend ? 'text-green' : 'text-red'}"><strong>${dbt.amount.toLocaleString('vi-VN')} đ</strong></td><td>${dbt.due_date || 'Không'}</td><td><button class="btn-danger" style="padding:4px 8px; font-size:12px;" onclick="deleteCloudData('debts', '${dbt.id}')">Xóa</button></td></tr>`;
     }).join('');
 }
-
+// Hàm vẽ biểu đồ (Đã sửa lại để khắc phục lỗi "is not defined")
+function updateChart(income, expense) {
+    const ctx = document.getElementById('expenseChart').getContext('2d');
+    // Hủy biểu đồ cũ nếu tồn tại để tránh lỗi chồng chéo
+    if (myChart != null) myChart.destroy();
+    myChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['Thu nhập', 'Chi tiêu'],
+            datasets: [{ 
+                data: [income || 1, expense || 0], 
+                backgroundColor: ['#4ade80', '#f87171'] 
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
 function renderReceipts() {
     const tbody = document.getElementById('receipt-list');
     if (!tbody) return;
@@ -544,33 +600,32 @@ function renderReceipts() {
 }
 
 // Hàm tải xuống hóa đơn (Đã sửa lỗi để tải file thay vì mở ảnh)
+// Hàm tải xuống hóa đơn (Đã sửa an toàn tuyệt đối cho Localhost)
 async function downloadReceipt(url) {
     try {
-        // Bước 1: Dùng fetch tải dữ liệu ảnh thô
         const response = await fetch(url);
         const blob = await response.blob();
-
-        // Bước 2: Tạo một đường dẫn URL tạm thời từ dữ liệu thô vừa tải
         const blobUrl = URL.createObjectURL(blob);
-
-        // Bước 3: Tạo thẻ a và kích hoạt tải xuống
+        
         const a = document.createElement('a');
         a.href = blobUrl;
-        
-        // Lấy tên file từ url (ví dụ: filename.jpg) để đặt tên khi tải về
         const fileName = url.split('/').pop() || 'hoa_don_' + Date.now() + '.jpg';
         a.download = fileName;
-
         document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        // Bước 4: Dọn dẹp bộ nhớ tạm (tối ưu cho trình duyệt)
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        
+        // ⏱️ Chờ 200ms rồi mới click
+        setTimeout(() => {
+            a.click();
+            // Chờ 200ms rồi dọn dẹp bộ nhớ
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 200);
+        }, 200);
+        
     } catch (error) {
         console.error('Lỗi tải xuống ảnh:', error);
-        // Nếu lỗi, người dùng vẫn có thể nhấn chuột phải chọn "Save image as" để lưu thủ công
-        alert('Không thể tự động tải xuống ảnh. Bạn có thể nhấn chuột phải vào ảnh và chọn "Lưu hình ảnh thành..." để tải thủ công.');
+        alert('Không thể tự động tải xuống ảnh. Vui lòng nhấn chuột phải vào ảnh > "Lưu hình ảnh thành..."');
     }
 }
 // ================== CAMERA & OCR ==================
