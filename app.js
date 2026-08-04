@@ -522,34 +522,36 @@ function renderReceipts() {
     tbody.innerHTML = html;
 }
 
-function downloadReceipt(url) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'hoa_don_' + Date.now() + '.jpg';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-}
+// Hàm tải xuống hóa đơn (Đã sửa lỗi để tải file thay vì mở ảnh)
+async function downloadReceipt(url) {
+    try {
+        // Bước 1: Dùng fetch tải dữ liệu ảnh thô
+        const response = await fetch(url);
+        const blob = await response.blob();
 
-function updateChart(income, expense) {
-    const ctx = document.getElementById('expenseChart').getContext('2d');
-    if (myChart != null) myChart.destroy();
-    myChart = new Chart(ctx, {
-        type: 'pie',
-        data: { labels: ['Thu nhập', 'Chi tiêu'], datasets: [{ data: [income || 1, expense || 0], backgroundColor: ['#4ade80', '#f87171'] }] },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-    });
-}
+        // Bước 2: Tạo một đường dẫn URL tạm thời từ dữ liệu thô vừa tải
+        const blobUrl = URL.createObjectURL(blob);
 
-function exportExcel() {
-    let csv = "Ngày,Loại,Cửa Hàng,Số Tiền,Thanh Toán\n";
-    cachedTransactions.forEach(tx => { csv += `${tx.date},${tx.type},${tx.vendor},${tx.total},${tx.payment}\n`; });
-    let el = document.createElement('a');
-    el.href = 'data:text/csv;charset=utf-8,%EF%BB%BF' + encodeURI(csv);
-    el.download = 'Lich_Su_Thu_Chi.csv';
-    el.click();
-}
+        // Bước 3: Tạo thẻ a và kích hoạt tải xuống
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        
+        // Lấy tên file từ url (ví dụ: filename.jpg) để đặt tên khi tải về
+        const fileName = url.split('/').pop() || 'hoa_don_' + Date.now() + '.jpg';
+        a.download = fileName;
 
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Bước 4: Dọn dẹp bộ nhớ tạm (tối ưu cho trình duyệt)
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (error) {
+        console.error('Lỗi tải xuống ảnh:', error);
+        // Nếu lỗi, người dùng vẫn có thể nhấn chuột phải chọn "Save image as" để lưu thủ công
+        alert('Không thể tự động tải xuống ảnh. Bạn có thể nhấn chuột phải vào ảnh và chọn "Lưu hình ảnh thành..." để tải thủ công.');
+    }
+}
 // ================== CAMERA & OCR ==================
 document.getElementById('receipt-upload').addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -732,7 +734,8 @@ if (insertError) {
     return;
 }
 
-    alert('✅ Lưu hóa đơn thành công!');
+        alert('✅ Lưu hóa đơn thành công!');
+    fetchReceipts(); 
     document.getElementById('btn-save-receipt').style.display = 'none';
     document.getElementById('receipt-thumb').style.display = 'none';
     currentReceiptFile = null;
